@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8">
+		<attributes>
+			<attribute name="module" value="true"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry exported="true" kind="lib" path="lib/sdk/oci-java-sdk-full-1.23.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/sdk/oci-java-sdk-full-1.23.0.jar" sourcepath="lib/sdk/oci-java-sdk-full-1.23.0-sources.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/commons-lang3-3.8.1.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/commons-io-2.6.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/commons-codec-1.13.jar"/>
@@ -14,7 +18,7 @@
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/jersey-entity-filtering-2.27.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/jersey-media-json-jackson-2.27.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/jersey-hk2-2.27.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/thirdparty/slf4j-api-1.7.26.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/thirdparty/slf4j-api-1.7.29.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/aopalliance-repackaged-2.5.0-b42.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/bcpkix-jdk15on-1.60.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/bcprov-jdk15on-1.60.jar"/>
@@ -27,11 +31,10 @@
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/jackson-datatype-jdk8-2.10.1.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/jackson-datatype-jsr310-2.10.1.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/jackson-module-jaxb-annotations-2.8.10.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/thirdparty/javassist-3.24.0-GA.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/thirdparty/javassist-3.22.0-CR2.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/javax.annotation-api-1.2.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/javax.inject-2.5.0-b42.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/javax.ws.rs-api-2.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/thirdparty/nimbus-jose-jwt-8.2.1.jar"/>
-	<classpathentry kind="lib" path="lib/thirdparty/validation-api-1.1.0.Final.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/thirdparty/nimbus-jose-jwt-8.5.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
