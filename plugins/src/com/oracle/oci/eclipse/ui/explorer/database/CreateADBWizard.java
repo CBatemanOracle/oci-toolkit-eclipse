@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.equinox.security.storage.ISecurePreferences;
 import org.eclipse.equinox.security.storage.StorageException;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
@@ -106,9 +105,7 @@ public class CreateADBWizard  extends Wizard implements INewWizard {
             try {
                 PreferencesWrapper.getSecurePreferences().put(key, page.getAdminPassword(), true);
             } catch (StorageException e) {
-                ISecurePreferences securePreferences = PreferencesWrapper.getSecurePreferences();
-                securePreferences.put(key, page.getAdminPassword(), true);
-                securePreferences.flush();
+               ErrorHandler.logErrorStack("Error storing admin password", e);
             }
         }
         
