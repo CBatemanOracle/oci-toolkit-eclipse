@@ -30,6 +30,7 @@ public class CreateADBWizard  extends Wizard implements INewWizard {
     private CreateADBWizardPage page;
     private ISelection selection;
     DbWorkload workloadType;
+    private CreateADBAdvancedWizardPage advancedPage;
 
 	public CreateADBWizard(DbWorkload workloadType) {
 		super();
@@ -41,6 +42,8 @@ public class CreateADBWizard  extends Wizard implements INewWizard {
     public void addPages() {
         page = new CreateADBWizardPage(selection, workloadType);
         addPage(page);
+        advancedPage = new CreateADBAdvancedWizardPage(selection, workloadType);
+        addPage(advancedPage);
     }
 
     /**

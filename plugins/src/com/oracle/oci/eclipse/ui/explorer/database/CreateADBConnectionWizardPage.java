@@ -80,7 +80,7 @@ public class CreateADBConnectionWizardPage extends WizardPage {
 		userText.setText("ADMIN");
 
 		Label adminPasswordLabel = new Label(innerTopContainer, SWT.NULL);
-		adminPasswordLabel.setText("&Password:         ");
+		adminPasswordLabel.setText("&Password:");
 		passwordText = new Text(innerTopContainer, SWT.BORDER | SWT.PASSWORD);
 		GridData gd2 = new GridData(GridData.FILL_HORIZONTAL);
 		passwordText.setLayoutData(gd2);
