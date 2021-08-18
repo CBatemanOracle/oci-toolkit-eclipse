@@ -1,7 +1,9 @@
 bin
 build
 features/target
+gendeps/target
 plugins/target
+plugins/lib
 tests/target
 tests/.settings
 releng/com.oracle.oci.eclipse.update/target
