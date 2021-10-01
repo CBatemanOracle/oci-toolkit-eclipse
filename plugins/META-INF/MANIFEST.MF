@@ -19,9 +19,9 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.datatools.connectivity.ui.dse;resolution:=optional,
  org.eclipse.equinox.security,
  org.eclipse.osgi,
- org.eclipse.datatools.enablement.oracle;bundle-version="1.2.101",
- org.eclipse.datatools.enablement.oracle.dbdefinition;bundle-version="1.2.101",
- org.eclipse.datatools.enablement.oracle.ui;bundle-version="1.2.101"
+ org.eclipse.datatools.enablement.oracle;bundle-version="1.2.100",
+ org.eclipse.datatools.enablement.oracle.dbdefinition;bundle-version="1.2.100",
+ org.eclipse.datatools.enablement.oracle.ui;bundle-version="1.2.100"
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: lib/sdk/oci-java-sdk-circuitbreaker-1.23.4.jar,
