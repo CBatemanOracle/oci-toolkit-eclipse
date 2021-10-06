@@ -34,9 +34,6 @@
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/javax.inject-2.5.0-b42.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/javax.ws.rs-api-2.1.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/thirdparty/nimbus-jose-jwt-8.5.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/thirdparty/javax.annotation-api-1.2.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/thirdparty/javax.inject-2.5.0-b42.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/thirdparty/javax.ws.rs-api-2.1.jar"/>
 	<classpathentry kind="lib" path="lib/sdk/oci-java-sdk-circuitbreaker-1.23.4.jar"/>
 	<classpathentry kind="lib" path="lib/sdk/oci-java-sdk-common-1.23.4.jar"/>
 	<classpathentry kind="lib" path="lib/sdk/oci-java-sdk-containerengine-1.23.4.jar"/>
@@ -47,8 +44,6 @@
 	<classpathentry kind="lib" path="lib/sdk/oci-java-sdk-objectstorage-extensions-1.23.4.jar"/>
 	<classpathentry kind="lib" path="lib/sdk/oci-java-sdk-objectstorage-generated-1.23.4.jar"/>
 	<classpathentry kind="lib" path="lib/sdk/oci-java-sdk-workrequests-1.23.4.jar"/>
-	<classpathentry kind="lib" path="lib/thirdparty/javassist-3.22.0-CR2.jar"/>
-	<classpathentry kind="lib" path="lib/thirdparty/nimbus-jose-jwt-8.5.jar"/>
 	<classpathentry kind="lib" path="lib/thirdparty/slf4j-api-1.7.29.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

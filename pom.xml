@@ -16,10 +16,7 @@
 	</properties>
 
 	<modules>
-		<module>plugins/com.oracle.oci.eclipse.core</module>
-		<module>plugins/com.oracle.oci.eclipse.ui</module>
-		<module>plugins/com.oracle.oci.eclipse.db</module>
-		<module>plugins/com.oracle.oci.eclipse.db.ui</module>
+		<module>plugins</module>
 		<module>features</module>
 		<module>releng</module>
 <!--		<module>tests</module> -->
