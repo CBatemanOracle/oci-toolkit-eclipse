@@ -22,40 +22,6 @@
 <!--		<module>tests</module> -->
 	</modules>
 
-    <dependencies>
-        <dependency>
-            <groupId>com.oracle.oci.sdk</groupId>
-            <artifactId>oci-java-sdk-database</artifactId>
-            <version>1.23.4</version>
-        </dependency>
-        <dependency>
-            <groupId>com.oracle.oci.sdk</groupId>
-            <artifactId>oci-java-sdk-objectstorage</artifactId>
-            <version>1.23.4</version>
-        </dependency>
-        <dependency>
-            <groupId>com.oracle.oci.sdk</groupId>
-            <artifactId>oci-java-sdk-core</artifactId>
-            <version>1.23.4</version>
-        </dependency>
-        <dependency>
-            <groupId>com.oracle.oci.sdk</groupId>
-            <artifactId>oci-java-sdk-containerengine</artifactId>
-            <version>1.23.4</version>
-        </dependency>
-        <dependency>
-            <groupId>com.oracle.oci.sdk</groupId>
-            <artifactId>oci-java-sdk-identity</artifactId>
-            <version>1.23.4</version>
-        </dependency>
-        <dependency>
-            <groupId>javax.ws.rs</groupId>
-            <artifactId>javax.ws.rs-api</artifactId>
-            <version>2.1</version>
-        </dependency>
-    </dependencies>
-
-
 	<build>
 		<testSourceDirectory>test</testSourceDirectory>
                 <pluginManagement>
