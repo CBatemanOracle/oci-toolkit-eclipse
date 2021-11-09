@@ -13,7 +13,8 @@ import org.eclipse.equinox.security.storage.StorageException;
 import com.oracle.bmc.identity.model.AuthToken;
 import com.oracle.oci.eclipse.ErrorHandler;
 
-public class PreferencesWrapper {
+public class PreferencesWrapper
+{
 
     private final static String PREFERENCES_LOCATION = "oci-ide-prefs";
     public static final String SECURE_STORAGE_KEY_PATH = "com.oracle.oci.eclipse/";
