@@ -19,6 +19,7 @@ import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.TERMINATE
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.UPDATELICENCETYPE;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.UPGRADE_INSTANCE_TO_PAID;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.COPY_ADMIN_PASSWORD;
+import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.GET_CONNECTION_STRINGS;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.getSupportedADBActions;
 
 import java.util.ArrayList;
@@ -332,6 +333,8 @@ public class ADBInstanceTable  extends BaseTable {
         	return true;
         case COPY_ADMIN_PASSWORD:
             return true;
+        case GET_CONNECTION_STRINGS:
+        	return true;
         }
         return false;
     }

@@ -6,7 +6,9 @@ package com.oracle.oci.eclipse.sdkclients;
 
 import java.util.Map;
 
+import com.oracle.bmc.database.model.AutonomousDatabaseConnectionStrings;
 import com.oracle.bmc.database.model.AutonomousDatabaseSummary;
+import com.oracle.bmc.database.model.AutonomousDatabaseSummary.InfrastructureType;
 
 public class ADBInstanceWrapper {
 
@@ -89,5 +91,28 @@ public class ADBInstanceWrapper {
 	
 	public String getInstanceType() {
 		return isFreeTierInstance() ? "Free" : "Paid";
+	}
+	
+	public String getDatabaseConnectionStrings()
+	{
+		AutonomousDatabaseConnectionStrings connectionStrings = instance.getConnectionStrings();
+		return connectionStrings.getAllConnectionStrings().toString();
+	}
+
+	public boolean isMTLSRequired()
+	{
+		 Boolean isMtlsConnectionRequired = instance.getIsMtlsConnectionRequired();
+		 return isMtlsConnectionRequired == null ? false : isMtlsConnectionRequired.booleanValue();
+	}
+	
+	public String isMTLSRequiredAsYesNo()
+	{
+		return isMTLSRequired() ? "Yes" : "No";
+	}
+	
+	public void foo() 
+	{
+	    InfrastructureType infraType = instance.getInfrastructureType();
+
 	}
 }

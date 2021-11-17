@@ -96,6 +96,8 @@ Export-Package: com.oracle.bmc.core.model,
  com.oracle.oci.eclipse.ui.explorer,
  com.oracle.oci.eclipse.ui.explorer.common,
  com.oracle.oci.eclipse.ui.explorer.compute,
+ com.oracle.oci.eclipse.ui.explorer.database,
+ com.oracle.oci.eclipse.ui.explorer.database.actions,
  com.oracle.oci.eclipse.ui.explorer.objectstorage
 Import-Package: org.eclipse.core.net.proxy
 
