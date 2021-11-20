@@ -107,6 +107,7 @@ import com.oracle.oci.eclipse.ui.explorer.database.ScaleUpDownADBWizard;
 import com.oracle.oci.eclipse.ui.explorer.database.StartADBWizard;
 import com.oracle.oci.eclipse.ui.explorer.database.StopADBWizard;
 import com.oracle.oci.eclipse.ui.explorer.database.TerminateADBWizard;
+import com.oracle.oci.eclipse.ui.explorer.database.UpdateADBAccessControlWizard;
 import com.oracle.oci.eclipse.ui.explorer.database.UpdateLicenseTypeADBWizard;
 import com.oracle.oci.eclipse.ui.explorer.database.UpgradeADBInstanceToPaidWizard;
 
@@ -220,6 +221,9 @@ public class ADBInstanceClient extends BaseClient {
                 break;
             case ADBConstants.GET_CONNECTION_STRINGS:
                 showConnectionStrings(instance);
+                break;
+            case ADBConstants.UPDATE_ADB_ACCESS_CONTROL:
+                updateAccessControl(instance);
                 break;
             }
         }
@@ -385,7 +389,19 @@ public class ADBInstanceClient extends BaseClient {
             
         });
     }
-    
+
+    private void updateAccessControl(AutonomousDatabaseSummary instance) {
+        Display.getDefault().syncExec(new Runnable() {
+            @Override
+            public void run() {
+                UpdateADBAccessControlWizard wizard = new UpdateADBAccessControlWizard(instance);
+                CustomWizardDialog dialog = 
+                    new CustomWizardDialog(Display.getDefault().getActiveShell(),wizard);
+                dialog.open();
+            }
+        });
+    }
+
     public DatabaseConnectionProfiles getConnectionProfiles(AutonomousDatabaseSummary instance) {
         if (databseClient == null) {
             return null;
@@ -473,6 +489,16 @@ public class ADBInstanceClient extends BaseClient {
         UpdateAutonomousDatabaseDetails updateRequest = UpdateAutonomousDatabaseDetails.builder()
                 .licenseModel(licenseModel).build();
 
+        databseClient.updateAutonomousDatabase(UpdateAutonomousDatabaseRequest.builder()
+                .updateAutonomousDatabaseDetails(updateRequest).autonomousDatabaseId(instance.getId()).build());
+    }
+    
+    public void updateAcl(final AutonomousDatabaseSummary instance,
+                            List<String> whitelistIps, boolean enableOneWayTls)
+    {
+        UpdateAutonomousDatabaseDetails updateRequest = UpdateAutonomousDatabaseDetails.builder()
+            .whitelistedIps(whitelistIps).build();
+        
         databseClient.updateAutonomousDatabase(UpdateAutonomousDatabaseRequest.builder()
                 .updateAutonomousDatabaseDetails(updateRequest).autonomousDatabaseId(instance.getId()).build());
     }

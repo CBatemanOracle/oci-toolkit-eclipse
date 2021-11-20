@@ -4,6 +4,8 @@
  */
 package com.oracle.oci.eclipse.sdkclients;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import com.oracle.bmc.database.model.AutonomousDatabaseConnectionStrings;
@@ -110,9 +112,35 @@ public class ADBInstanceWrapper {
 		return isMTLSRequired() ? "Yes" : "No";
 	}
 	
-	public void foo() 
+	public boolean isAclEnabled()
 	{
-	    InfrastructureType infraType = instance.getInfrastructureType();
-
+	    Boolean isAccessControlEnabled = instance.getIsAccessControlEnabled();
+	    return isAccessControlEnabled != null && isAccessControlEnabled.booleanValue();
 	}
+	
+	public String isAclEnabledYesNo()
+	{
+	    return isAclEnabled() ? "Yes" : "No";
+	}
+
+	public boolean isWhiteListedIps()
+	{
+	    return instance.getArePrimaryWhitelistedIpsUsed() != null 
+	            && instance.getArePrimaryWhitelistedIpsUsed().booleanValue();
+	}
+
+	public String isWhiteListedIpsYesNo() {
+        return isWhiteListedIps() ? "Yes" : "No";
+    }
+
+	public List<String> getWhiteListedIps()
+	{
+	    List<String> whitelistedIps = instance.getWhitelistedIps();
+	    if (whitelistedIps != null)
+	    {
+	        return whitelistedIps;
+	    }
+	    return Collections.emptyList();
+	}
+
 }

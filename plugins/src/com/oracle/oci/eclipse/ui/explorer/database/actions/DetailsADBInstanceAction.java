@@ -7,6 +7,7 @@ package com.oracle.oci.eclipse.ui.explorer.database.actions;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -105,7 +106,10 @@ public class DetailsADBInstanceAction extends BaseAction {
         data.add(new TablePair("Database Version", instance.getDatabaseVersion()));
         data.add(new TablePair("Tags", instance.getFreeformTags().toString()));
         data.add(new TablePair("Instance Type", instance.getInstanceType()));
+        data.add(new TablePair("Is ACL Enabled", instance.isAclEnabledYesNo()));
+        data.add(new TablePair("Is IP Allowlist Enabled", instance.isWhiteListedIpsYesNo()));
         data.add(new TablePair("mTLS Connections Required", instance.isMTLSRequiredAsYesNo()));
+        data.add(new TablePair("IP Allowlist", StringUtils.join(instance.getWhiteListedIps())));
 
         return data;
     }

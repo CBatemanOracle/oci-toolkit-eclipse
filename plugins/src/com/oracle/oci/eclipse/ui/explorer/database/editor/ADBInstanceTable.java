@@ -6,9 +6,11 @@ package com.oracle.oci.eclipse.ui.explorer.database.editor;
 
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.ADMINPASSWORD;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.CHANGE_WORKLOAD_TYPE;
+import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.COPY_ADMIN_PASSWORD;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.CREATECLONE;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.CREATECONNECTION;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.DOWNLOAD_CLIENT_CREDENTIALS;
+import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.GET_CONNECTION_STRINGS;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.RESTART;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.RESTORE;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.SCALEUPDOWN;
@@ -17,9 +19,8 @@ import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.START;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.STOP;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.TERMINATE;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.UPDATELICENCETYPE;
+import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.UPDATE_ADB_ACCESS_CONTROL;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.UPGRADE_INSTANCE_TO_PAID;
-import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.COPY_ADMIN_PASSWORD;
-import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.GET_CONNECTION_STRINGS;
 import static com.oracle.oci.eclipse.ui.explorer.database.ADBConstants.getSupportedADBActions;
 
 import java.util.ArrayList;
@@ -335,6 +336,8 @@ public class ADBInstanceTable  extends BaseTable {
             return true;
         case GET_CONNECTION_STRINGS:
         	return true;
+        case UPDATE_ADB_ACCESS_CONTROL:
+            return true;
         }
         return false;
     }

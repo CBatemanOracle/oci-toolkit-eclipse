@@ -40,9 +40,10 @@ public class CreateADBAdvancedWizardPage extends WizardPage {
     private TableColumn ipTypeColumn;
     private TableColumn valuesColumn;
     private TableColumn optionValuesColumn;
-    private Table table;
+    private Table configureAnywhereTable;
     private TableColumn privateVCN;
     private TableColumn privateVCNCompartment;
+    private Table privateEndpointTable;
 
     public CreateADBAdvancedWizardPage(ISelection selection, DbWorkload workloadType) {
         super("advancedWizardPage");
@@ -88,6 +89,10 @@ public class CreateADBAdvancedWizardPage extends WizardPage {
 
     private void createSecureFromEverywhere(final Composite secureFromEverywhereTabComp) {
         secureFromEverywhereTabComp.setLayout(new GridLayout(2, false));
+        Label explainMlsLabel = new Label(secureFromEverywhereTabComp, SWT.NONE);
+        explainMlsLabel.setText("To enable one-way TLS (walletless mode) you must click on 'Configure access control rules'");
+        GridDataFactory.defaultsFor(explainMlsLabel).span(2,1).applyTo(explainMlsLabel);
+
         Button configureSecurityCheckbox = new Button(secureFromEverywhereTabComp, SWT.CHECK);
         configureSecurityCheckbox.setText("Configure access control rules");
         GridDataFactory.defaultsFor(configureSecurityCheckbox).span(2,1).applyTo(configureSecurityCheckbox);
@@ -100,15 +105,15 @@ public class CreateADBAdvancedWizardPage extends WizardPage {
         rmItem.setText("Remove");
 
         TableViewer viewer = new TableViewer(secureFromEverywhereTabComp, SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER);
-        this.table = viewer.getTable();
-        table.setHeaderVisible(true);
-        table.setLinesVisible(true);
-        table.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).span(2,1).create());
-        this.ipTypeColumn = new TableColumn(table, SWT.NONE);
+        this.configureAnywhereTable = viewer.getTable();
+        configureAnywhereTable.setHeaderVisible(true);
+        configureAnywhereTable.setLinesVisible(true);
+        configureAnywhereTable.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).span(2,1).create());
+        this.ipTypeColumn = new TableColumn(configureAnywhereTable, SWT.NONE);
         ipTypeColumn.setText("IP Notation");
-        this.valuesColumn = new TableColumn(table, SWT.NONE);
+        this.valuesColumn = new TableColumn(configureAnywhereTable, SWT.NONE);
         valuesColumn.setText("Values");
-        this.optionValuesColumn = new TableColumn(table, SWT.NONE);
+        this.optionValuesColumn = new TableColumn(configureAnywhereTable, SWT.NONE);
         optionValuesColumn.setText("Optional");
 
         viewer.setContentProvider(new IStructuredContentProvider() {
@@ -152,12 +157,12 @@ public class CreateADBAdvancedWizardPage extends WizardPage {
 
         // disable if button not checked
         actionPanel.setEnabled(false);
-        table.setEnabled(false);
+        configureAnywhereTable.setEnabled(false);
         configureSecurityCheckbox.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {
                 actionPanel.setEnabled(configureSecurityCheckbox.getSelection());
-                table.setEnabled(configureSecurityCheckbox.getSelection());
+                configureAnywhereTable.setEnabled(configureSecurityCheckbox.getSelection());
             }
         });
     }
@@ -196,13 +201,13 @@ public class CreateADBAdvancedWizardPage extends WizardPage {
         networkSecGroups.setLayoutData(layoutData);
 
         TableViewer viewer = new TableViewer(networkSecGroups, SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER);
-        this.table = viewer.getTable();
-        table.setHeaderVisible(true);
-        table.setLinesVisible(true);
-        table.setLayoutData(GridDataFactory.defaultsFor(table).align(SWT.FILL, SWT.FILL).grab(true, true).create());
-        this.privateVCN = new TableColumn(table, SWT.NONE);
+        this.privateEndpointTable = viewer.getTable();
+        privateEndpointTable.setHeaderVisible(true);
+        privateEndpointTable.setLinesVisible(true);
+        privateEndpointTable.setLayoutData(GridDataFactory.defaultsFor(configureAnywhereTable).align(SWT.FILL, SWT.FILL).grab(true, true).create());
+        this.privateVCN = new TableColumn(configureAnywhereTable, SWT.NONE);
         privateVCN.setText("Virtual Cloud Network");
-        this.privateVCNCompartment = new TableColumn(table, SWT.NONE);
+        this.privateVCNCompartment = new TableColumn(configureAnywhereTable, SWT.NONE);
         privateVCNCompartment.setText("Compartment");
 
         this.privateVCN.pack();
