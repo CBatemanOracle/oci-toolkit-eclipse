@@ -2,38 +2,27 @@ package com.oracle.oci.eclipse.ui.explorer.database;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeSupport;
-import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.ICoreRunnable;
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.MultiStatus;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jface.layout.GridDataFactory;
-import org.eclipse.jface.viewers.CellEditor;
-import org.eclipse.jface.viewers.ColumnViewer;
-import org.eclipse.jface.viewers.ComboBoxCellEditor;
-import org.eclipse.jface.viewers.EditingSupport;
-import org.eclipse.jface.viewers.ILabelProviderListener;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
 import org.eclipse.jface.viewers.IStructuredSelection;
-import org.eclipse.jface.viewers.ITableColorProvider;
-import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.TableViewerColumn;
-import org.eclipse.jface.viewers.TextCellEditor;
 import org.eclipse.jface.wizard.WizardPage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.graphics.Color;
-import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -43,6 +32,7 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Link;
+import org.eclipse.swt.widgets.Sash;
 import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.TabItem;
 import org.eclipse.swt.widgets.Table;
@@ -51,17 +41,30 @@ import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
 
+import com.oracle.bmc.core.model.Vcn;
 import com.oracle.bmc.database.model.AutonomousDatabaseSummary;
 import com.oracle.oci.eclipse.Activator;
 import com.oracle.oci.eclipse.sdkclients.ADBInstanceWrapper;
+import com.oracle.oci.eclipse.sdkclients.NetworkClient;
+import com.oracle.oci.eclipse.ui.explorer.database.model.AccessControlRowHolder;
+import com.oracle.oci.eclipse.ui.explorer.database.model.AccessControlType;
+import com.oracle.oci.eclipse.ui.explorer.database.model.AccessControlType.Category;
+import com.oracle.oci.eclipse.ui.explorer.database.model.IPAddressType;
+import com.oracle.oci.eclipse.ui.explorer.database.model.OcidBasedAccessControlType;
+import com.oracle.oci.eclipse.ui.explorer.database.provider.AclTableLabelProvider;
+import com.oracle.oci.eclipse.ui.explorer.database.provider.EditingSupportFactory;
+import com.oracle.oci.eclipse.ui.explorer.database.provider.EditingSupportFactory.IPTypeColumnEditingSupport;
+import com.oracle.oci.eclipse.ui.explorer.database.provider.EditingSupportFactory.IPValueColumnEditingSupport;
+import com.oracle.oci.eclipse.ui.explorer.database.provider.PropertyListeningArrayList;
+import com.oracle.oci.eclipse.ui.explorer.database.provider.VCNTableLabelProvider;
 
 public class UpdateADBAccessControlWizardPage extends WizardPage {
-    private final static Pattern IP_ADDR_PATTERN = Pattern.compile("(\\d+).(\\d+).(\\d+).(\\d+)");
-    private final static Pattern CIDR_BLOCK_PATTERN = Pattern.compile("(\\d+).(\\d+).(\\d+).(\\d+)/(\\d+)");
 
     private final AutonomousDatabaseSummary instance;
 
     private PropertyListeningArrayList<AccessControlRowHolder> ipConfigs = new PropertyListeningArrayList<>();
+    private PropertyListeningArrayList<AccessControlRowHolder> vcnConfigs = new PropertyListeningArrayList<>();
+
     private TableViewerColumn ipTypeColumn;
     private TableViewerColumn valuesColumn;
     private Table configureAnywhereTable;
@@ -75,6 +78,14 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
 
     private Button configureSecurityCheckbox;
     private Button enableOneWayTls;
+    private ToolBar actionPanelVCN;
+    private TableViewer vcnAclTableViewer;
+
+    private TableViewerColumn vcnDisplayNameColumn;
+    private TableViewerColumn vcnOcidColumn;
+    private TableViewerColumn vcnIPRestrictions;
+
+    //private PropertyListeningArrayList<VcnWrapper> vcnInfos;
 
     public UpdateADBAccessControlWizardPage(AutonomousDatabaseSummary instance) {
         super("wizardPage");
@@ -110,6 +121,7 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         TabItem secureFromEverywhere = new TabItem(connectionTypeFolder, SWT.NONE);
         secureFromEverywhere.setText("Secure From Anywhere");
         Composite secureFromEverywhereTabComp = new Composite(connectionTypeFolder, SWT.BORDER);
+
         secureFromEverywhereTabComp
                 .setLayoutData(new GridData(GridData.FILL_BOTH | GridData.GRAB_HORIZONTAL | GridData.GRAB_VERTICAL));
         secureFromEverywhere.setControl(secureFromEverywhereTabComp);
@@ -128,9 +140,9 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
 
     private void createSecureFromEverywhere(final Composite secureFromEverywhereTabComp) {
         secureFromEverywhereTabComp.setLayout(new GridLayout(2, false));
-        Label explainMlsLabel = new Label(secureFromEverywhereTabComp, SWT.NONE);
-        explainMlsLabel
-                .setText("To enable one-way TLS (walletless mode) you must click on 'Configure access control rules'");
+        Label explainMlsLabel = new Label(secureFromEverywhereTabComp, SWT.WRAP);
+        explainMlsLabel.setText(
+                "Specify the IP addresses and VCNs allowed to access this database. An access control list blocks all IP addresses that are not in the list from accessing the database.");
         GridDataFactory.defaultsFor(explainMlsLabel).span(2, 1).applyTo(explainMlsLabel);
 
         this.configureSecurityCheckbox = new Button(secureFromEverywhereTabComp, SWT.CHECK);
@@ -138,9 +150,45 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         GridDataFactory.defaultsFor(configureSecurityCheckbox).span(2, 1).applyTo(configureSecurityCheckbox);
 
         this.enableOneWayTls = new Button(secureFromEverywhereTabComp, SWT.CHECK);
-        enableOneWayTls.setText("Enable One-Way TLS");
+        enableOneWayTls.setText("Require mutual TLS (mTLS) authentication");
+        enableOneWayTls.setToolTipText(
+                "If you select this option, mTLS will be required to authenticate connections to your Autonomous Database.");
 
-        this.actionPanelIpAddress = new ToolBar(secureFromEverywhereTabComp, SWT.NONE);
+        // create toolbar and table for ip address acls
+        createIPAddressPanel(secureFromEverywhereTabComp);
+        final Sash sash = new Sash(secureFromEverywhereTabComp, SWT.BORDER | SWT.HORIZONTAL);
+        GridDataFactory.swtDefaults().span(2, 1).align(SWT.FILL, SWT.BEGINNING).applyTo(sash);
+        sash.addListener(SWT.Selection, e -> sash.setBounds(e.x, e.y, e.width, e.height));
+        Rectangle clientArea = secureFromEverywhereTabComp.getClientArea();
+        sash.setBounds(180, clientArea.y, 32, clientArea.height);
+        createVCNPanel(secureFromEverywhereTabComp);
+
+        populateAccessFromAnywhere(this.instance);
+
+        // add listener after initialization.
+        configureSecurityCheckbox.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                updateAclUpdate(configureSecurityCheckbox.getSelection());
+            }
+        });
+        this.ipTypeColumn.getColumn().pack();
+        this.valuesColumn.getColumn().pack();
+
+        this.vcnIPRestrictions.getColumn().pack();
+        this.vcnDisplayNameColumn.getColumn().pack();
+        this.vcnOcidColumn.getColumn().pack();
+    }
+
+    private void createIPAddressPanel(final Composite secureFromEverywhereTabComp) {
+        Group ipAddressPanel = new Group(secureFromEverywhereTabComp, SWT.NONE);
+        ipAddressPanel.setText("Secure By IP Address");
+        ipAddressPanel.setLayout(new GridLayout(2, false));
+        GridData layoutData = new GridData(GridData.FILL_BOTH | GridData.GRAB_HORIZONTAL | GridData.GRAB_VERTICAL);
+        layoutData.horizontalSpan = 2;
+        ipAddressPanel.setLayoutData(layoutData);
+
+        this.actionPanelIpAddress = new ToolBar(ipAddressPanel, SWT.NONE);
         GridDataFactory.swtDefaults().grab(true, false).align(SWT.END, SWT.END).span(2, 1)
                 .applyTo(actionPanelIpAddress);
         ToolItem addItem = new ToolItem(actionPanelIpAddress, SWT.PUSH);
@@ -148,8 +196,7 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         ToolItem rmItem = new ToolItem(actionPanelIpAddress, SWT.PUSH);
         rmItem.setText("Remove");
 
-        this.ipAddressAclTableViewer = new TableViewer(secureFromEverywhereTabComp,
-                SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER);
+        this.ipAddressAclTableViewer = new TableViewer(ipAddressPanel, SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER);
         this.configureAnywhereTable = ipAddressAclTableViewer.getTable();
         configureAnywhereTable.setHeaderVisible(true);
         configureAnywhereTable.setLinesVisible(true);
@@ -172,12 +219,12 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
             }
         });
 
-        ipAddressAclTableViewer.setLabelProvider(new LabelProvider());
+        ipAddressAclTableViewer.setLabelProvider(new AclTableLabelProvider());
         addItem.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {
                 IPAddressType addressType = new IPAddressType("");
-                ipConfigs.add(new AccessControlRowHolder(addressType));
+                ipConfigs.add(new AccessControlRowHolder(addressType, true));
                 ipAddressAclTableViewer.refresh();
             }
         });
@@ -191,31 +238,109 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
                 ipAddressAclTableViewer.refresh();
             }
         });
+    }
 
-        populateAccessFromAnywhere(this.instance);
+    private void createVCNPanel(final Composite parent) {
+        Group ipAddressPanel = new Group(parent, SWT.NONE);
+        ipAddressPanel.setText("Secure By VCN");
+        ipAddressPanel.setLayout(new GridLayout(2, false));
+        GridData layoutData = new GridData(GridData.FILL_BOTH | GridData.GRAB_HORIZONTAL | GridData.GRAB_VERTICAL);
+        layoutData.horizontalSpan = 2;
+        ipAddressPanel.setLayoutData(layoutData);
 
-        // add listener after initialization.
-        configureSecurityCheckbox.addSelectionListener(new SelectionAdapter() {
+        this.actionPanelVCN = new ToolBar(ipAddressPanel, SWT.NONE);
+        GridDataFactory.swtDefaults().grab(true, false).align(SWT.END, SWT.END).span(2, 1).applyTo(actionPanelVCN);
+        ToolItem addItem = new ToolItem(actionPanelVCN, SWT.PUSH);
+        addItem.setText("Add");
+        ToolItem rmItem = new ToolItem(actionPanelVCN, SWT.PUSH);
+        rmItem.setText("Remove");
+
+        this.vcnAclTableViewer = new TableViewer(ipAddressPanel, SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER);
+        this.configureAnywhereTable = vcnAclTableViewer.getTable();
+        configureAnywhereTable.setHeaderVisible(true);
+        configureAnywhereTable.setLinesVisible(true);
+        configureAnywhereTable.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).span(2, 1).create());
+
+        this.vcnDisplayNameColumn = new TableViewerColumn(vcnAclTableViewer, SWT.NONE);
+        vcnDisplayNameColumn.getColumn().setText("Display Name");
+        vcnDisplayNameColumn.setEditingSupport(new EditingSupportFactory.VcnDisplayNameColumnEditingSupport(vcnAclTableViewer));
+
+        this.vcnIPRestrictions = new TableViewerColumn(vcnAclTableViewer, SWT.NONE);
+        this.vcnIPRestrictions.getColumn().setText("IP Restrictions (Optional)");
+
+        this.vcnOcidColumn = new TableViewerColumn(vcnAclTableViewer, SWT.NONE);
+        this.vcnOcidColumn.getColumn().setText("Ocid");
+        this.vcnOcidColumn.setEditingSupport(new EditingSupportFactory.VcnOcidColumnEditingSupport(vcnAclTableViewer));
+        
+        vcnAclTableViewer.setContentProvider(new IStructuredContentProvider() {
             @Override
-            public void widgetSelected(SelectionEvent e) {
-                updateAclUpdate(configureSecurityCheckbox.getSelection());
+            public Object[] getElements(Object inputElement) {
+                if (inputElement instanceof List<?>) {
+                    return ((List<?>) inputElement).toArray();
+                }
+                return new Object[0];
             }
         });
-        this.ipTypeColumn.getColumn().pack();
-        this.valuesColumn.getColumn().pack();
 
+        vcnAclTableViewer.setLabelProvider(new VCNTableLabelProvider());
+        addItem.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                OcidBasedAccessControlType addressType = 
+                    new OcidBasedAccessControlType("", Collections.emptyList());
+                AccessControlRowHolder e2 = new AccessControlRowHolder(addressType, false);
+                e2.setNew(true);
+                vcnConfigs.add(e2);
+                vcnAclTableViewer.refresh();
+                e2.addPropertyChangeListener(new PropertyChangeListener() {
+                    @Override
+                    public void propertyChange(PropertyChangeEvent evt) {
+                        if ("ocid".equals(evt.getPropertyName()))
+                        {
+                            NetworkClient networkClient = new NetworkClient();
+                            Job.create("Load VCN", new ICoreRunnable() {
+                                @Override
+                                public void run(IProgressMonitor monitor) throws CoreException {
+                                    Vcn vcn = networkClient.getVcn((String) evt.getNewValue());
+                                    if (vcn != null)
+                                    {
+                                        ((OcidBasedAccessControlType)evt.getSource()).setVcn(vcn);
+                                    }
+                                }
+                            }).schedule();;
+                        }
+                    }
+                });
+            }
+        });
+
+        rmItem.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                IStructuredSelection selection = vcnAclTableViewer.getStructuredSelection();
+                Object firstElement = selection.getFirstElement();
+                vcnConfigs.remove(firstElement);
+                vcnAclTableViewer.refresh();
+            }
+        });
     }
 
     private void updateStatus() {
-        MultiStatus result = validate();
-        if (!result.isOK()) {
-            setErrorMessage(result.getMessage());
-            setPageComplete(false);
-        } else {
-            setErrorMessage(null);
-            setPageComplete(true);
-        }
-        ipAddressAclTableViewer.refresh(true);
+        getShell().getDisplay().asyncExec(new Runnable() {
+            @Override
+            public void run() {
+                MultiStatus result = validate();
+                if (!result.isOK()) {
+                    setErrorMessage(result.getChildren()[0].getMessage());
+                    setPageComplete(false);
+                } else {
+                    setErrorMessage(null);
+                    setPageComplete(true);
+                }
+                ipAddressAclTableViewer.refresh(true);
+                vcnAclTableViewer.refresh(true);
+            }
+        });
     }
 
     private MultiStatus validate() {
@@ -223,7 +348,7 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         for (AccessControlRowHolder source : this.ipConfigs) {
             String validation = source.getAclType().isValueValid();
             if (validation != null) {
-                IStatus status = new Status(IStatus.ERROR, Activator.PLUGIN_ID, "", null);
+                IStatus status = new Status(IStatus.ERROR, Activator.PLUGIN_ID, validation, null);
                 multiStatus.add(status);
             }
         }
@@ -246,17 +371,58 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         }
         this.configureSecurityCheckbox.setSelection(aclEnabled);
         updateAclUpdate(aclEnabled);
-        this.ipConfigs = parseAclsFromText(whiteListedIps);
+        this.ipConfigs = parseAclsFromText(whiteListedIps, Category.IP_BASED);
         this.ipAddressAclTableViewer.setInput(this.ipConfigs);
+
+        this.vcnConfigs = parseAclsFromText(whiteListedIps, Category.VCN_BASED);
+
+        //this.vcnInfos = new PropertyListeningArrayList<VcnWrapper>();
+        final NetworkClient networkClient = new NetworkClient();
+        for (final AccessControlRowHolder aclHolder : this.vcnConfigs) {
+            if (!aclHolder.isFullyLoaded()) {
+                Job.create("Load vcn info for acl", new ICoreRunnable() {
+                    @Override
+                    public void run(IProgressMonitor monitor) throws CoreException {
+                        final OcidBasedAccessControlType aclType = 
+                            (OcidBasedAccessControlType) aclHolder.getAclType();
+                        String ocid = aclType.getOcid();
+                        Vcn vcn = networkClient.getVcn(ocid);
+                        if (vcn != null)
+                        {
+                            System.out.println(vcn.getDisplayName());
+                            aclType.setVcn(vcn);
+                            aclHolder.setFullyLoaded(true);
+                            Display.getDefault().asyncExec(new Runnable() {
+                                @Override
+                                public void run() {
+                                    vcnAclTableViewer.refresh();
+                                }
+                                
+                            });
+                        }
+                    }
+                }).schedule();;
+            }
+        }
+        List<Vcn> listVcns = networkClient.listVcns();
+        for (Vcn vcn : listVcns) {
+            System.out.printf("id=%s, compartment=%s, displayName=%s\n", vcn.getId(), vcn.getCompartmentId(),
+                    vcn.getDisplayName());
+        }
+        this.vcnAclTableViewer.setInput(this.vcnConfigs);
     }
 
-    // private final static Pattern ipAddress = Pattern.compile("(\d+).)
-    private PropertyListeningArrayList<AccessControlRowHolder> parseAclsFromText(List<String> whiteListedIps) {
+    private PropertyListeningArrayList<AccessControlRowHolder> parseAclsFromText(List<String> whiteListedIps,
+            Category category) {
         PropertyListeningArrayList<AccessControlRowHolder> acls = new PropertyListeningArrayList<>();
 
         for (final String whitelisted : whiteListedIps) {
-            IPBasedAccessControlType acl = parseAcl(whitelisted);
-            acls.add(new AccessControlRowHolder(acl));
+            AccessControlType acl = AccessControlType.parseAcl(whitelisted);
+            if (acl.getCategory() == category) {
+                // IP Based is always loaded; vcn needs to wait for thec actual network
+                // metadata.
+                acls.add(new AccessControlRowHolder(acl, acl.getCategory() == Category.IP_BASED));
+            }
         }
 
         acls.addPropertyChangeListener(new PropertyChangeListener() {
@@ -265,23 +431,8 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
             public void propertyChange(PropertyChangeEvent evt) {
                 updateStatus();
             }
-
         });
         return acls;
-    }
-
-    private IPBasedAccessControlType parseAcl(String aclStr) {
-        Matcher matcher = IP_ADDR_PATTERN.matcher(aclStr);
-        if (matcher.matches()) {
-            return new IPAddressType(aclStr);
-        } else {
-            matcher = CIDR_BLOCK_PATTERN.matcher(aclStr);
-            if (matcher.matches()) {
-                return new CIDRBlockType(aclStr);
-            } else {
-                return new UnknownAccessControlType();
-            }
-        }
     }
 
     private void createPrivateEndpoint(Composite privateNetworkTabComp) {
@@ -342,409 +493,6 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         });
     }
 
-    private static class IPTypeColumnEditingSupport extends EditingSupport {
-        private final static List<IPBasedAccessControlType.Types> supportedTypes = Stream
-                .of(IPBasedAccessControlType.Types.values()).filter(e -> e != IPBasedAccessControlType.Types.Unknown)
-                .collect(Collectors.toList());
-        private final static List<String> ipNotationValues = supportedTypes.stream().map(Enum::name)
-                .collect(Collectors.toList());
-
-        TableViewer ipAddressAclTableViewer;
-
-        private IPTypeColumnEditingSupport(ColumnViewer viewer) {
-            super(viewer);
-            ipAddressAclTableViewer = (TableViewer) viewer;
-        }
-
-        @Override
-        protected void setValue(Object element, Object value) {
-            if (element instanceof AccessControlRowHolder) {
-                if (value instanceof Integer) {
-                    Integer index = (Integer) value;
-                    if (index < ipNotationValues.size()) {
-                        IPBasedAccessControlType.Types type = supportedTypes.get(index);
-                        if (((AccessControlRowHolder) element).getAclType().getType() != type) {
-                            IPBasedAccessControlType newType = createAclType(type);
-                            ((AccessControlRowHolder) element).setAclType(newType);
-                        }
-                    }
-                }
-            }
-            ipAddressAclTableViewer.update(element, null);
-        }
-
-        private IPBasedAccessControlType createAclType(IPBasedAccessControlType.Types type) {
-            switch (type) {
-            case CIDR:
-                return new CIDRBlockType("");
-            case IP:
-                return new IPAddressType("");
-            default:
-                throw new AssertionError("Unknown ACL type");
-            }
-        }
-
-        @Override
-        protected Object getValue(Object element) {
-            if (element instanceof AccessControlRowHolder) {
-                return ((AccessControlRowHolder) element).getAclType().getType().ordinal();
-            }
-            return null;
-        }
-
-        @Override
-        protected CellEditor getCellEditor(Object element) {
-            return new ComboBoxCellEditor(ipAddressAclTableViewer.getTable(), ipNotationValues.toArray(new String[0]));
-        }
-
-        @Override
-        protected boolean canEdit(Object element) {
-            return true;
-        }
-    }
-
-    private static class IPValueColumnEditingSupport extends EditingSupport {
-        TableViewer ipAddressAclTableViewer;
-
-        private IPValueColumnEditingSupport(ColumnViewer viewer) {
-            super(viewer);
-            ipAddressAclTableViewer = (TableViewer) viewer;
-        }
-
-        @Override
-        protected void setValue(Object element, Object value) {
-            if (element instanceof AccessControlRowHolder) {
-                if (value instanceof String) {
-                    ((AccessControlRowHolder) element).getAclType().setValue((String) value);
-                }
-            }
-            ipAddressAclTableViewer.update(element, null);
-        }
-
-        @Override
-        protected Object getValue(Object element) {
-            if (element instanceof AccessControlRowHolder) {
-                return ((AccessControlRowHolder) element).getAclType().getValue();
-            }
-            return null;
-        }
-
-        @Override
-        protected CellEditor getCellEditor(Object element) {
-            TextCellEditor textCellEditor = new TextCellEditor(this.ipAddressAclTableViewer.getTable());
-//            if (((AccessControlRowHolder) element).getAclType().getType() == IPBasedAccessControlType.Types.CIDR) {
-//                textCellEditor.setValidator(new ICellEditorValidator() {
-//                    @Override
-//                    public String isValid(Object value) {
-//                        return CIDRBlockType.isValid((String) value);
-//                    }
-//                });
-//            } else if (((AccessControlRowHolder) element).getAclType()
-//                    .getType() == IPBasedAccessControlType.Types.CIDR) {
-//                textCellEditor.setValidator(new ICellEditorValidator() {
-//                    @Override
-//                    public String isValid(Object value) {
-//                        return IPAddressType.isValid((String) value);
-//                    }
-//                });
-//            }
-
-            return textCellEditor;
-        }
-
-        @Override
-        protected boolean canEdit(Object element) {
-            return true;
-        }
-    }
-
-    private static class LabelProvider implements ITableLabelProvider, ITableColorProvider {
-        @Override
-        public Image getColumnImage(Object element, int columnIndex) {
-            return null;
-        }
-
-        @Override
-        public String getColumnText(Object element, int columnIndex) {
-            if (element instanceof AccessControlRowHolder) {
-                switch (columnIndex) {
-                case 0:
-                    return ((AccessControlRowHolder) element).getAclType().getTypeLabel();
-                case 1:
-                    return ((AccessControlRowHolder) element).getAclType().getValue();
-                }
-            }
-            return "";
-        }
-
-        @Override
-        public void addListener(ILabelProviderListener listener) {
-            // TODO Auto-generated method stub
-
-        }
-
-        @Override
-        public void dispose() {
-            // TODO Auto-generated method stub
-
-        }
-
-        @Override
-        public boolean isLabelProperty(Object element, String property) {
-            // TODO Auto-generated method stub
-            return false;
-        }
-
-        @Override
-        public void removeListener(ILabelProviderListener listener) {
-            // TODO Auto-generated method stub
-
-        }
-
-        @Override
-        public Color getForeground(Object element, int columnIndex) {
-            return null;
-        }
-
-        @Override
-        public Color getBackground(Object element, int columnIndex) {
-            if (columnIndex == 1)
-            {
-                if (((AccessControlRowHolder)element).getAclType().isValueValid() != null)
-                {
-                    return Display.getCurrent().getSystemColor(SWT.COLOR_RED);
-                }
-            }
-            return null;
-        }
-
-    }
-
-    private static class AccessControlRowHolder extends EventSource implements PropertyChangeListener {
-        private IPBasedAccessControlType aclType;
-
-        public AccessControlRowHolder(IPBasedAccessControlType type) {
-            this.aclType = type;
-            this.aclType.addPropertyChangeListener(this);
-        }
-
-        public void setAclType(IPBasedAccessControlType newType) {
-
-            IPBasedAccessControlType oldAclType = this.aclType;
-            oldAclType.removePropertyChangeListener(this);
-            this.aclType = newType;
-            this.aclType.addPropertyChangeListener(this);
-            this.pcs.firePropertyChange("aclType", oldAclType, this.aclType);
-        }
-
-        public IPBasedAccessControlType getAclType() {
-            return aclType;
-        }
-
-        @Override
-        public void propertyChange(PropertyChangeEvent evt) {
-            if ("value".equals(evt.getPropertyName())) {
-                this.pcs.firePropertyChange("value", evt.getOldValue(), evt.getNewValue());
-            }
-        }
-
-    }
-
-//    private static class CellEditor extends 
-    private static abstract class IPBasedAccessControlType extends EventSource {
-        public enum Types {
-            IP("IP Address"), CIDR("CIDR Block"), Unknown("Unknown ACL Type");
-
-            private String label;
-
-            private Types(String label) {
-                this.label = label;
-            }
-        }
-
-        private final Types type;
-
-        public IPBasedAccessControlType(Types type) {
-            this.type = type;
-        }
-
-        public Types getType() {
-            return type;
-        }
-
-        public String getTypeLabel() {
-            return this.type.label;
-        }
-
-        public final void setValue(String value) {
-            String oldValue = this.getValue();
-            doSetValue(value);
-            String newValue = getValue();
-            if (!oldValue.equals(newValue)) {
-                this.pcs.firePropertyChange("value", oldValue, newValue);
-            }
-        }
-
-        protected List<String> parseOctals(String value) {
-            if (value != null && !value.trim().isEmpty()) {
-                Matcher matcher = IP_ADDR_PATTERN.matcher(value);
-                if (matcher.matches()) {
-                    List<String> octals = new ArrayList<>();
-                    octals.add(matcher.group(1));
-                    octals.add(matcher.group(2));
-                    octals.add(matcher.group(3));
-                    octals.add(matcher.group(4));
-                    return octals;
-                }
-            }
-            return Collections.emptyList();
-        }
-
-        public abstract String isValueValid();
-
-        public abstract void doSetValue(String value);
-
-        public abstract String getValue();
-    }
-
-    private static class IPAddressType extends IPBasedAccessControlType {
-        private List<String> octalStrings;
-        private String strValue;
-
-        public IPAddressType(String asStr) {
-            super(Types.IP);
-            this.strValue = asStr;
-            this.octalStrings = parseOctals(this.strValue);
-        }
-
-        @Override
-        public String getValue() {
-            return strValue;
-        }
-
-        @Override
-        public void doSetValue(String value) {
-            this.strValue = value;
-            this.octalStrings = parseOctals(value);
-        }
-
-
-        @SuppressWarnings("unused")
-        public String isValueValid() {
-            return isValid(this.octalStrings);
-        }
-
-        public static String isValid(List<String> octals) {
-            if (octals != null && octals.size() == 4)
-            {
-                OCTAL_LOOP: for (String octalStr : octals)
-                {
-                    try
-                    {
-                        Integer octal = Integer.valueOf(octalStr);
-                        if (octal < 0 || octal > 255)
-                        {
-                            break OCTAL_LOOP;
-                        }
-                    }
-                    catch (NumberFormatException e)
-                    {
-                        break OCTAL_LOOP;
-                    }
-                }
-                return null;
-            }
-            return "IP Address must be of the form 192.168.0.5.  Each number must be between 0 and 255.";
-        }
-    }
-
-    private static class CIDRBlockType extends IPBasedAccessControlType {
-        private String block;
-        private List<String> octalStrings;
-        private String cidrStr;
-
-        public CIDRBlockType(String cidrStr) {
-            super(Types.CIDR);
-            this.cidrStr = cidrStr;
-            parseCidrBlock();
-        }
-
-        private void parseCidrBlock()
-        {
-            if (this.cidrStr != null && !this.cidrStr.trim().isEmpty()) {
-                Matcher matcher = CIDR_BLOCK_PATTERN.matcher(this.cidrStr);
-                if (matcher.matches()) {
-                    this.octalStrings = new ArrayList<>();
-                    this.octalStrings.add(matcher.group(1));
-                    this.octalStrings.add(matcher.group(2));
-                    this.octalStrings.add(matcher.group(3));
-                    this.octalStrings.add(matcher.group(4));
-                    this.block = matcher.group(5);
-                    return;
-                }
-            }
-            this.octalStrings = Collections.emptyList();
-            this.block = "";
-        }
-        @Override
-        public String getValue() {
-            return this.cidrStr;
-//            if (this.octalStrings != null && !this.octalStrings.isEmpty() && this.block != null
-//                    && !this.block.isEmpty()) {
-//                String str = StringUtils.join(this.octalStrings, ".");
-//                str += "/" + block;
-//                return str;
-//            }
-//            return "";
-        }
-
-        @Override
-        public void doSetValue(String value) {
-            String oldStr = getValue();
-            this.cidrStr = value;
-            parseCidrBlock();
-            if (!oldStr.equals(this.cidrStr)) {
-                this.pcs.firePropertyChange("value", oldStr, this.cidrStr);
-            }
-        }
-
-        @SuppressWarnings("unused")
-        public String isValueValid() {
-            return isValid(getValue());
-        }
-
-        public static String isValid(String cidrStr) {
-            if (cidrStr != null && !cidrStr.trim().isEmpty()) {
-                Matcher matcher = CIDR_BLOCK_PATTERN.matcher(cidrStr);
-                if (matcher.matches()) {
-                    return null;
-                }
-            }
-            return "CIDR block must be of the form 10.0.0.1/16";
-        }
-    }
-
-    private static class UnknownAccessControlType extends IPBasedAccessControlType {
-        public UnknownAccessControlType() {
-            super(Types.Unknown);
-        }
-
-        @Override
-        public String getValue() {
-            return "Unknown Access Control Type";
-        }
-
-        @Override
-        public void doSetValue(String value) {
-            throw new AssertionError();
-        }
-
-        @Override
-        public String isValueValid() {
-            return null;
-        }
-    }
-
     private static class CompartmentLabelLink {
         private Link compartmentLink;
 
@@ -759,91 +507,19 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         }
     }
 
-    private abstract static class EventSource {
-        protected final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
-
-        public void addPropertyChangeListener(PropertyChangeListener listener) {
-            this.pcs.addPropertyChangeListener(listener);
-        }
-
-        public void removePropertyChangeListener(PropertyChangeListener listener) {
-            this.pcs.removePropertyChangeListener(listener);
-        }
-
-    }
-
-    private static class PropertyListeningArrayList<E extends EventSource> extends AbstractList<E>
-            implements PropertyChangeListener {
-        private List<E> wrapped = new ArrayList<>();
-        private PropertyChangeSupport pcs = new PropertyChangeSupport(this);
-
-        @Override
-        public void propertyChange(PropertyChangeEvent evt) {
-            pcs.firePropertyChange(evt);
-        }
-
-        @Override
-        public E get(int index) {
-            return this.wrapped.get(index);
-        }
-
-        @Override
-        public int size() {
-            return this.wrapped.size();
-        }
-
-        @Override
-        public boolean add(E e) {
-            int curIndex = this.wrapped.size();
-            if (this.wrapped.add(e)) {
-                e.addPropertyChangeListener(this);
-                this.pcs.fireIndexedPropertyChange("acl", curIndex, null, e);
-                return true;
-            }
-            return false;
-        }
-
-        @Override
-        public E set(int index, E element) {
-            E oldValue = this.wrapped.set(index, element);
-            if (oldValue != null) {
-                oldValue.removePropertyChangeListener(this);
-            }
-            this.pcs.fireIndexedPropertyChange("acl", index, oldValue, element);
-            return oldValue;
-        }
-
-        @Override
-        public E remove(int index) {
-            E oldValue = this.wrapped.remove(index);
-            if (oldValue != null) {
-                oldValue.removePropertyChangeListener(this);
-            }
-            this.pcs.fireIndexedPropertyChange("acl", index, oldValue, null);
-            return oldValue;
-        }
-
-        public void addPropertyChangeListener(PropertyChangeListener listener) {
-            this.pcs.addPropertyChangeListener(listener);
-        }
-
-        public void removePropertyChangeListener(PropertyChangeListener listener) {
-            this.pcs.removePropertyChangeListener(listener);
-        }
-
-    }
-
     public boolean isEnableOnWayTls() {
         return this.enableOneWayTls.getSelection();
     }
 
     public List<String> getWhitelistedIps() {
         List<String> whitelistedIps = new ArrayList<>();
-        for (AccessControlRowHolder holder : this.ipConfigs)
-        {
+        for (AccessControlRowHolder holder : this.ipConfigs) {
+            whitelistedIps.add(holder.getAclType().getValue());
+        }
+        for (AccessControlRowHolder holder : this.vcnConfigs) {
             whitelistedIps.add(holder.getAclType().getValue());
         }
         return whitelistedIps;
     }
-    
+
 }
