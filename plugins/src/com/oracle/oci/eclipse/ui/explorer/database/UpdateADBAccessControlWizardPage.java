@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.ICoreRunnable;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -20,9 +21,9 @@ import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.TableViewerColumn;
 import org.eclipse.jface.wizard.WizardPage;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -32,7 +33,6 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Link;
-import org.eclipse.swt.widgets.Sash;
 import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.TabItem;
 import org.eclipse.swt.widgets.Table;
@@ -47,14 +47,9 @@ import com.oracle.oci.eclipse.Activator;
 import com.oracle.oci.eclipse.sdkclients.ADBInstanceWrapper;
 import com.oracle.oci.eclipse.sdkclients.NetworkClient;
 import com.oracle.oci.eclipse.ui.explorer.database.model.AccessControlRowHolder;
-import com.oracle.oci.eclipse.ui.explorer.database.model.AccessControlType;
 import com.oracle.oci.eclipse.ui.explorer.database.model.AccessControlType.Category;
-import com.oracle.oci.eclipse.ui.explorer.database.model.IPAddressType;
 import com.oracle.oci.eclipse.ui.explorer.database.model.OcidBasedAccessControlType;
-import com.oracle.oci.eclipse.ui.explorer.database.provider.AclTableLabelProvider;
 import com.oracle.oci.eclipse.ui.explorer.database.provider.EditingSupportFactory;
-import com.oracle.oci.eclipse.ui.explorer.database.provider.EditingSupportFactory.IPTypeColumnEditingSupport;
-import com.oracle.oci.eclipse.ui.explorer.database.provider.EditingSupportFactory.IPValueColumnEditingSupport;
 import com.oracle.oci.eclipse.ui.explorer.database.provider.PropertyListeningArrayList;
 import com.oracle.oci.eclipse.ui.explorer.database.provider.VCNTableLabelProvider;
 
@@ -62,22 +57,15 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
 
     private final AutonomousDatabaseSummary instance;
 
-    private PropertyListeningArrayList<AccessControlRowHolder> ipConfigs = new PropertyListeningArrayList<>();
     private PropertyListeningArrayList<AccessControlRowHolder> vcnConfigs = new PropertyListeningArrayList<>();
 
-    private TableViewerColumn ipTypeColumn;
-    private TableViewerColumn valuesColumn;
     private Table configureAnywhereTable;
     private TableColumn privateVCN;
     private TableColumn privateVCNCompartment;
     private Table privateEndpointTable;
 
-    private ToolBar actionPanelIpAddress;
-
-    private TableViewer ipAddressAclTableViewer;
-
     private Button configureSecurityCheckbox;
-    private Button enableOneWayTls;
+    private Button btnIsMLTSRequired;
     private ToolBar actionPanelVCN;
     private TableViewer vcnAclTableViewer;
 
@@ -85,19 +73,13 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
     private TableViewerColumn vcnOcidColumn;
     private TableViewerColumn vcnIPRestrictions;
 
-    //private PropertyListeningArrayList<VcnWrapper> vcnInfos;
+    private IPAddressPanel ipAddressPanel;
 
     public UpdateADBAccessControlWizardPage(AutonomousDatabaseSummary instance) {
         super("wizardPage");
         setTitle("Update Autonomous Database Access Control");
         setDescription("");
         this.instance = instance;
-    }
-
-    @Override
-    public boolean isPageComplete() {
-        // TODO Auto-generated method stub
-        return super.isPageComplete();
     }
 
     @Override
@@ -149,19 +131,19 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         configureSecurityCheckbox.setText("Configure access control rules");
         GridDataFactory.defaultsFor(configureSecurityCheckbox).span(2, 1).applyTo(configureSecurityCheckbox);
 
-        this.enableOneWayTls = new Button(secureFromEverywhereTabComp, SWT.CHECK);
-        enableOneWayTls.setText("Require mutual TLS (mTLS) authentication");
-        enableOneWayTls.setToolTipText(
+        this.btnIsMLTSRequired = new Button(secureFromEverywhereTabComp, SWT.CHECK);
+        btnIsMLTSRequired.setText("Require mutual TLS (mTLS) authentication");
+        btnIsMLTSRequired.setToolTipText(
                 "If you select this option, mTLS will be required to authenticate connections to your Autonomous Database.");
 
+        final SashForm sashForm = new SashForm(secureFromEverywhereTabComp, SWT.BORDER | SWT.VERTICAL | SWT.SMOOTH);
+        GridDataFactory.swtDefaults().span(2, 1).align(SWT.FILL, SWT.FILL).grab(true, true).applyTo(sashForm);
+        sashForm.setForeground(Display.getCurrent().getSystemColor(SWT.COLOR_BLACK));
+
         // create toolbar and table for ip address acls
-        createIPAddressPanel(secureFromEverywhereTabComp);
-        final Sash sash = new Sash(secureFromEverywhereTabComp, SWT.BORDER | SWT.HORIZONTAL);
-        GridDataFactory.swtDefaults().span(2, 1).align(SWT.FILL, SWT.BEGINNING).applyTo(sash);
-        sash.addListener(SWT.Selection, e -> sash.setBounds(e.x, e.y, e.width, e.height));
-        Rectangle clientArea = secureFromEverywhereTabComp.getClientArea();
-        sash.setBounds(180, clientArea.y, 32, clientArea.height);
-        createVCNPanel(secureFromEverywhereTabComp);
+        createVCNPanel(sashForm);
+
+        createIPAddressPanel(sashForm);
 
         populateAccessFromAnywhere(this.instance);
 
@@ -172,8 +154,15 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
                 updateAclUpdate(configureSecurityCheckbox.getSelection());
             }
         });
-        this.ipTypeColumn.getColumn().pack();
-        this.valuesColumn.getColumn().pack();
+
+        btnIsMLTSRequired.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                updateStatus();
+            }
+        });
+
+        this.ipAddressPanel.pack();
 
         this.vcnIPRestrictions.getColumn().pack();
         this.vcnDisplayNameColumn.getColumn().pack();
@@ -181,63 +170,8 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
     }
 
     private void createIPAddressPanel(final Composite secureFromEverywhereTabComp) {
-        Group ipAddressPanel = new Group(secureFromEverywhereTabComp, SWT.NONE);
-        ipAddressPanel.setText("Secure By IP Address");
-        ipAddressPanel.setLayout(new GridLayout(2, false));
-        GridData layoutData = new GridData(GridData.FILL_BOTH | GridData.GRAB_HORIZONTAL | GridData.GRAB_VERTICAL);
-        layoutData.horizontalSpan = 2;
-        ipAddressPanel.setLayoutData(layoutData);
-
-        this.actionPanelIpAddress = new ToolBar(ipAddressPanel, SWT.NONE);
-        GridDataFactory.swtDefaults().grab(true, false).align(SWT.END, SWT.END).span(2, 1)
-                .applyTo(actionPanelIpAddress);
-        ToolItem addItem = new ToolItem(actionPanelIpAddress, SWT.PUSH);
-        addItem.setText("Add");
-        ToolItem rmItem = new ToolItem(actionPanelIpAddress, SWT.PUSH);
-        rmItem.setText("Remove");
-
-        this.ipAddressAclTableViewer = new TableViewer(ipAddressPanel, SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER);
-        this.configureAnywhereTable = ipAddressAclTableViewer.getTable();
-        configureAnywhereTable.setHeaderVisible(true);
-        configureAnywhereTable.setLinesVisible(true);
-        configureAnywhereTable.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).span(2, 1).create());
-        this.ipTypeColumn = new TableViewerColumn(this.ipAddressAclTableViewer, SWT.NONE);
-        ipTypeColumn.getColumn().setText("IP Notation");
-        ipTypeColumn.setEditingSupport(new IPTypeColumnEditingSupport(ipTypeColumn.getViewer()));
-
-        this.valuesColumn = new TableViewerColumn(ipAddressAclTableViewer, SWT.NONE);
-        valuesColumn.getColumn().setText("Value");
-        valuesColumn.setEditingSupport(new IPValueColumnEditingSupport(ipAddressAclTableViewer));
-
-        ipAddressAclTableViewer.setContentProvider(new IStructuredContentProvider() {
-            @Override
-            public Object[] getElements(Object inputElement) {
-                if (inputElement instanceof List<?>) {
-                    return ((List<?>) inputElement).toArray();
-                }
-                return new Object[0];
-            }
-        });
-
-        ipAddressAclTableViewer.setLabelProvider(new AclTableLabelProvider());
-        addItem.addSelectionListener(new SelectionAdapter() {
-            @Override
-            public void widgetSelected(SelectionEvent e) {
-                IPAddressType addressType = new IPAddressType("");
-                ipConfigs.add(new AccessControlRowHolder(addressType, true));
-                ipAddressAclTableViewer.refresh();
-            }
-        });
-
-        rmItem.addSelectionListener(new SelectionAdapter() {
-            @Override
-            public void widgetSelected(SelectionEvent e) {
-                IStructuredSelection selection = ipAddressAclTableViewer.getStructuredSelection();
-                Object firstElement = selection.getFirstElement();
-                ipConfigs.remove(firstElement);
-                ipAddressAclTableViewer.refresh();
-            }
-        });
+        this.ipAddressPanel = new IPAddressPanel();
+        this.ipAddressPanel.createControls(secureFromEverywhereTabComp);
     }
 
     private void createVCNPanel(final Composite parent) {
@@ -263,15 +197,18 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
 
         this.vcnDisplayNameColumn = new TableViewerColumn(vcnAclTableViewer, SWT.NONE);
         vcnDisplayNameColumn.getColumn().setText("Display Name");
-        vcnDisplayNameColumn.setEditingSupport(new EditingSupportFactory.VcnDisplayNameColumnEditingSupport(vcnAclTableViewer));
+        vcnDisplayNameColumn
+                .setEditingSupport(new EditingSupportFactory.VcnDisplayNameColumnEditingSupport(vcnAclTableViewer));
 
         this.vcnIPRestrictions = new TableViewerColumn(vcnAclTableViewer, SWT.NONE);
         this.vcnIPRestrictions.getColumn().setText("IP Restrictions (Optional)");
+        this.vcnIPRestrictions
+                .setEditingSupport(new EditingSupportFactory.VcnIPRestrictionColumnEditingSupport(vcnAclTableViewer));
 
         this.vcnOcidColumn = new TableViewerColumn(vcnAclTableViewer, SWT.NONE);
         this.vcnOcidColumn.getColumn().setText("Ocid");
         this.vcnOcidColumn.setEditingSupport(new EditingSupportFactory.VcnOcidColumnEditingSupport(vcnAclTableViewer));
-        
+
         vcnAclTableViewer.setContentProvider(new IStructuredContentProvider() {
             @Override
             public Object[] getElements(Object inputElement) {
@@ -286,8 +223,7 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         addItem.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {
-                OcidBasedAccessControlType addressType = 
-                    new OcidBasedAccessControlType("", Collections.emptyList());
+                OcidBasedAccessControlType addressType = new OcidBasedAccessControlType("", Collections.emptyList());
                 AccessControlRowHolder e2 = new AccessControlRowHolder(addressType, false);
                 e2.setNew(true);
                 vcnConfigs.add(e2);
@@ -295,19 +231,18 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
                 e2.addPropertyChangeListener(new PropertyChangeListener() {
                     @Override
                     public void propertyChange(PropertyChangeEvent evt) {
-                        if ("ocid".equals(evt.getPropertyName()))
-                        {
+                        if ("ocid".equals(evt.getPropertyName())) {
                             NetworkClient networkClient = new NetworkClient();
                             Job.create("Load VCN", new ICoreRunnable() {
                                 @Override
                                 public void run(IProgressMonitor monitor) throws CoreException {
                                     Vcn vcn = networkClient.getVcn((String) evt.getNewValue());
-                                    if (vcn != null)
-                                    {
-                                        ((OcidBasedAccessControlType)evt.getSource()).setVcn(vcn);
+                                    if (vcn != null) {
+                                        ((OcidBasedAccessControlType) evt.getSource()).setVcn(vcn);
                                     }
                                 }
-                            }).schedule();;
+                            }).schedule();
+                            ;
                         }
                     }
                 });
@@ -329,7 +264,8 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         getShell().getDisplay().asyncExec(new Runnable() {
             @Override
             public void run() {
-                MultiStatus result = validate();
+                MultiStatus result = ipAddressPanel.validate();
+                result.merge(validateIsMTLSRequired());
                 if (!result.isOK()) {
                     setErrorMessage(result.getChildren()[0].getMessage());
                     setPageComplete(false);
@@ -337,27 +273,26 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
                     setErrorMessage(null);
                     setPageComplete(true);
                 }
-                ipAddressAclTableViewer.refresh(true);
+                ipAddressPanel.refresh(true);
                 vcnAclTableViewer.refresh(true);
             }
         });
     }
 
-    private MultiStatus validate() {
-        MultiStatus multiStatus = new MultiStatus(Activator.PLUGIN_ID, -1, null, null);
-        for (AccessControlRowHolder source : this.ipConfigs) {
-            String validation = source.getAclType().isValueValid();
-            if (validation != null) {
-                IStatus status = new Status(IStatus.ERROR, Activator.PLUGIN_ID, validation, null);
-                multiStatus.add(status);
+    private IStatus validateIsMTLSRequired() {
+        if (!btnIsMLTSRequired.getSelection()) {
+            if (ipAddressPanel.getIpConfigs().isEmpty() && vcnConfigs.isEmpty()) {
+                return new Status(IStatus.ERROR, Activator.PLUGIN_ID, "Must have at least one ACL to disable mTLS");
             }
         }
-        return multiStatus;
+        return Status.OK_STATUS;
     }
 
     private void updateAclUpdate(boolean enabled) {
-        actionPanelIpAddress.setEnabled(enabled);
+        ipAddressPanel.setEnabled(enabled);
         configureAnywhereTable.setEnabled(enabled);
+        btnIsMLTSRequired.setEnabled(enabled);
+        actionPanelVCN.setEnabled(enabled);
     }
 
     private void populateAccessFromAnywhere(AutonomousDatabaseSummary instance2) {
@@ -370,25 +305,40 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
             aclEnabled = false;
         }
         this.configureSecurityCheckbox.setSelection(aclEnabled);
+
+        this.btnIsMLTSRequired.setSelection(wrapper.isMTLSRequired());
+
         updateAclUpdate(aclEnabled);
-        this.ipConfigs = parseAclsFromText(whiteListedIps, Category.IP_BASED);
-        this.ipAddressAclTableViewer.setInput(this.ipConfigs);
+        PropertyListeningArrayList<AccessControlRowHolder> ipConfigs = AccessControlRowHolder
+                .parseAclsFromText(whiteListedIps, Category.IP_BASED);
+        ipConfigs.addPropertyChangeListener(new PropertyChangeListener() {
+            @Override
+            public void propertyChange(PropertyChangeEvent evt) {
+                updateStatus();
+            }
+        });
+        this.ipAddressPanel.setInput(ipConfigs);
 
-        this.vcnConfigs = parseAclsFromText(whiteListedIps, Category.VCN_BASED);
+        this.vcnConfigs = AccessControlRowHolder.parseAclsFromText(whiteListedIps, Category.VCN_BASED);
+        vcnConfigs.addPropertyChangeListener(new PropertyChangeListener() {
 
-        //this.vcnInfos = new PropertyListeningArrayList<VcnWrapper>();
+            @Override
+            public void propertyChange(PropertyChangeEvent evt) {
+                updateStatus();
+            }
+        });
+
+        // this.vcnInfos = new PropertyListeningArrayList<VcnWrapper>();
         final NetworkClient networkClient = new NetworkClient();
         for (final AccessControlRowHolder aclHolder : this.vcnConfigs) {
             if (!aclHolder.isFullyLoaded()) {
                 Job.create("Load vcn info for acl", new ICoreRunnable() {
                     @Override
                     public void run(IProgressMonitor monitor) throws CoreException {
-                        final OcidBasedAccessControlType aclType = 
-                            (OcidBasedAccessControlType) aclHolder.getAclType();
+                        final OcidBasedAccessControlType aclType = (OcidBasedAccessControlType) aclHolder.getAclType();
                         String ocid = aclType.getOcid();
                         Vcn vcn = networkClient.getVcn(ocid);
-                        if (vcn != null)
-                        {
+                        if (vcn != null) {
                             System.out.println(vcn.getDisplayName());
                             aclType.setVcn(vcn);
                             aclHolder.setFullyLoaded(true);
@@ -397,11 +347,12 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
                                 public void run() {
                                     vcnAclTableViewer.refresh();
                                 }
-                                
+
                             });
                         }
                     }
-                }).schedule();;
+                }).schedule();
+                ;
             }
         }
         List<Vcn> listVcns = networkClient.listVcns();
@@ -410,29 +361,6 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
                     vcn.getDisplayName());
         }
         this.vcnAclTableViewer.setInput(this.vcnConfigs);
-    }
-
-    private PropertyListeningArrayList<AccessControlRowHolder> parseAclsFromText(List<String> whiteListedIps,
-            Category category) {
-        PropertyListeningArrayList<AccessControlRowHolder> acls = new PropertyListeningArrayList<>();
-
-        for (final String whitelisted : whiteListedIps) {
-            AccessControlType acl = AccessControlType.parseAcl(whitelisted);
-            if (acl.getCategory() == category) {
-                // IP Based is always loaded; vcn needs to wait for thec actual network
-                // metadata.
-                acls.add(new AccessControlRowHolder(acl, acl.getCategory() == Category.IP_BASED));
-            }
-        }
-
-        acls.addPropertyChangeListener(new PropertyChangeListener() {
-
-            @Override
-            public void propertyChange(PropertyChangeEvent evt) {
-                updateStatus();
-            }
-        });
-        return acls;
     }
 
     private void createPrivateEndpoint(Composite privateNetworkTabComp) {
@@ -507,13 +435,13 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         }
     }
 
-    public boolean isEnableOnWayTls() {
-        return this.enableOneWayTls.getSelection();
+    public boolean isMTLSRequired() {
+        return this.btnIsMLTSRequired.getSelection();
     }
 
     public List<String> getWhitelistedIps() {
         List<String> whitelistedIps = new ArrayList<>();
-        for (AccessControlRowHolder holder : this.ipConfigs) {
+        for (AccessControlRowHolder holder : this.ipAddressPanel.getIpConfigs()) {
             whitelistedIps.add(holder.getAclType().getValue());
         }
         for (AccessControlRowHolder holder : this.vcnConfigs) {
@@ -522,4 +450,66 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         return whitelistedIps;
     }
 
+    static class UpdateState {
+        private List<String> whitelistedIps;
+        private boolean isMtlsConnectionRequired;
+
+        public UpdateState(AutonomousDatabaseSummary instance) {
+            this(instance.getWhitelistedIps(), 
+               instance.getIsMtlsConnectionRequired() != null ? instance.getIsMtlsConnectionRequired() : false);
+        }
+
+        public UpdateState(List<String> whitelistIps, boolean isMtlsConnectionRequired) {
+            this.whitelistedIps = new ArrayList<>(whitelistIps != null ? whitelistIps : Collections.emptyList());
+            Collections.sort(this.whitelistedIps);
+            this.isMtlsConnectionRequired = isMtlsConnectionRequired;
+        }
+
+        public boolean isAclChanged(UpdateState otherState) {
+            if (otherState.whitelistedIps.size() != whitelistedIps.size()) {
+                return true;
+            }
+            for (int i = 0; i < whitelistedIps.size(); i++) {
+                String str1 = whitelistedIps.get(i);
+                assert str1 != null;
+                String str2 = otherState.whitelistedIps.get(i);
+                assert str2 != null;
+                // neither of these should be null;
+                if (!str1.equals(str2)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public boolean isMtlsConnectionRequiredChanged(UpdateState otherState) {
+            return isMtlsConnectionRequired != otherState.isMtlsConnectionRequired;
+        }
+
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+
+            if (other instanceof UpdateState) {
+                UpdateState otherState = (UpdateState) other;
+                if (isAclChanged(otherState)) {
+                    return false;
+                }
+                return !isMtlsConnectionRequiredChanged(otherState);
+            }
+            return false;
+        }
+
+        public int hashCode() {
+            HashCodeBuilder hashCodeBuilder = new HashCodeBuilder();
+            hashCodeBuilder.append(isMtlsConnectionRequired);
+            hashCodeBuilder.append(whitelistedIps.toArray());
+            return hashCodeBuilder.toHashCode();
+        }
+    }
+
+    public boolean getConfigureAccess() {
+        return configureSecurityCheckbox.getSelection();
+    }
 }

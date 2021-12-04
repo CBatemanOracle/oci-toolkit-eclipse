@@ -52,6 +52,7 @@ import org.eclipse.swt.widgets.Shell;
 
 import com.oracle.bmc.database.DatabaseClient;
 import com.oracle.bmc.database.model.AutonomousContainerDatabaseSummary;
+import com.oracle.bmc.database.model.AutonomousDatabase;
 import com.oracle.bmc.database.model.AutonomousDatabaseBackupSummary;
 import com.oracle.bmc.database.model.AutonomousDatabaseConnectionStrings;
 import com.oracle.bmc.database.model.AutonomousDatabaseSummary;
@@ -70,6 +71,7 @@ import com.oracle.bmc.database.requests.CreateAutonomousDatabaseRequest;
 import com.oracle.bmc.database.requests.DeleteAutonomousDatabaseRequest;
 import com.oracle.bmc.database.requests.GenerateAutonomousDatabaseWalletRequest;
 import com.oracle.bmc.database.requests.GetAutonomousDatabaseRegionalWalletRequest;
+import com.oracle.bmc.database.requests.GetAutonomousDatabaseRequest;
 import com.oracle.bmc.database.requests.GetAutonomousDatabaseWalletRequest;
 import com.oracle.bmc.database.requests.ListAutonomousContainerDatabasesRequest;
 import com.oracle.bmc.database.requests.ListAutonomousDatabaseBackupsRequest;
@@ -83,6 +85,7 @@ import com.oracle.bmc.database.requests.UpdateAutonomousDatabaseRequest;
 import com.oracle.bmc.database.requests.UpdateAutonomousDatabaseWalletRequest;
 import com.oracle.bmc.database.responses.GenerateAutonomousDatabaseWalletResponse;
 import com.oracle.bmc.database.responses.GetAutonomousDatabaseRegionalWalletResponse;
+import com.oracle.bmc.database.responses.GetAutonomousDatabaseResponse;
 import com.oracle.bmc.database.responses.GetAutonomousDatabaseWalletResponse;
 import com.oracle.bmc.database.responses.ListAutonomousContainerDatabasesResponse;
 import com.oracle.bmc.database.responses.ListAutonomousDatabaseBackupsResponse;
@@ -494,11 +497,27 @@ public class ADBInstanceClient extends BaseClient {
     }
     
     public void updateAcl(final AutonomousDatabaseSummary instance,
-                            List<String> whitelistIps, boolean enableOneWayTls)
+                            List<String> whitelistIps)
     {
+        // Per UpdateAutonomousDatabaseDetails.whitelistedIps, if you want to clear all
+        // then set a single empty string.
+        if (whitelistIps.isEmpty())
+        {
+            whitelistIps = new ArrayList<>();
+            whitelistIps.add("");
+        }
         UpdateAutonomousDatabaseDetails updateRequest = UpdateAutonomousDatabaseDetails.builder()
             .whitelistedIps(whitelistIps).build();
-        
+        databseClient.updateAutonomousDatabase(UpdateAutonomousDatabaseRequest.builder()
+                .updateAutonomousDatabaseDetails(updateRequest).autonomousDatabaseId(instance.getId()).build());
+    }
+
+    public void updateRequiresMTLS(final AutonomousDatabaseSummary instance,
+                                    boolean isRequired)
+    {
+        UpdateAutonomousDatabaseDetails updateRequest = 
+                UpdateAutonomousDatabaseDetails.builder().isMtlsConnectionRequired(Boolean.valueOf(isRequired))
+                    .build();
         databseClient.updateAutonomousDatabase(UpdateAutonomousDatabaseRequest.builder()
                 .updateAutonomousDatabaseDetails(updateRequest).autonomousDatabaseId(instance.getId()).build());
     }
@@ -841,4 +860,26 @@ public class ADBInstanceClient extends BaseClient {
 
     }
 
+    public AutonomousDatabase getAutonomousDatabase(final AutonomousDatabaseSummary instance) {
+
+        GetAutonomousDatabaseRequest request = GetAutonomousDatabaseRequest.builder()
+                .autonomousDatabaseId(instance.getId()).build();
+
+        if (databseClient == null) {
+            return null;
+        }
+
+        GetAutonomousDatabaseResponse response = null;
+        try {
+            response = databseClient.getAutonomousDatabase(request);
+        } catch (Throwable e) {
+            // To handle forbidden error
+            ErrorHandler.logError("Unable to get Autonomous Databases: " + e.getMessage());
+        }
+
+        if (response != null) {
+            return response.getAutonomousDatabase();
+        }
+        return null;
+    }
 }

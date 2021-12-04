@@ -10,7 +10,6 @@ import java.util.Map;
 
 import com.oracle.bmc.database.model.AutonomousDatabaseConnectionStrings;
 import com.oracle.bmc.database.model.AutonomousDatabaseSummary;
-import com.oracle.bmc.database.model.AutonomousDatabaseSummary.InfrastructureType;
 
 public class ADBInstanceWrapper {
 
@@ -70,7 +69,9 @@ public class ADBInstanceWrapper {
 	public String getAutoScaling() {
 		return instance.getIsAutoScalingEnabled() ? "Enabled" : "Disabled";
 	}
-
+	public com.oracle.bmc.database.model.AutonomousDatabaseSummary.LifecycleState getLifecycleStateEnum() {
+	    return instance.getLifecycleState();
+	}
 	public String getLifeCycleState() {
 		return instance.getLifecycleState().getValue();
 	}

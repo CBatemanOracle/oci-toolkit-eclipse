@@ -7,7 +7,7 @@ public abstract class AccessControlType extends EventSource {
         IP_BASED, VCN_BASED;
     }
     public enum Types {
-        IP("IP Address"), CIDR("CIDR Block"),  VCN_BY_NAME("VCNByName"), VCN_BY_OCID("VCNByOCID"), Unknown("Unknown ACL Type");
+        IP("IP Address"), CIDR("CIDR Block"),  VCN_BY_OCID("VCNByOCID"), Unknown("Unknown ACL Type");
 
         private String label;
 

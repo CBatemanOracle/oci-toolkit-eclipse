@@ -50,6 +50,14 @@ public class OcidBasedAccessControlType extends VCNBasedAccessControlType {
         if (!ipList.isEmpty())
         {
             builder.append(";");
+            buildIPListIfPresent(builder);
+        }
+        return builder.toString();
+    }
+
+    public void buildIPListIfPresent(StringBuilder builder) {
+        if (!ipList.isEmpty())
+        {
             for (String ip : this.ipList)
             {
                 builder.append(ip);
@@ -58,7 +66,6 @@ public class OcidBasedAccessControlType extends VCNBasedAccessControlType {
             // remove the last trailing comma
             builder.deleteCharAt(builder.length()-1);
         }
-        return builder.toString();
     }
 
     public String getOcid() {
@@ -81,7 +88,7 @@ public class OcidBasedAccessControlType extends VCNBasedAccessControlType {
         {
             this.ocid = null;
         }
-        this.ipList = Collections.emptyList();
+        //this.ipList = Collections.emptyList();
         if (oldVcn != this.vcn)
         {
             this.pcs.firePropertyChange(new PropertyChangeEvent(this, "vcn", oldVcn, this.vcn));
@@ -89,11 +96,31 @@ public class OcidBasedAccessControlType extends VCNBasedAccessControlType {
         this.pcs.firePropertyChange(new PropertyChangeEvent(this, "ocid", oldOid, this.ocid));
     }
 
+    public List<String> getIPList() {
+        if (this.ipList != null && !this.ipList.isEmpty())
+        {
+            return Collections.unmodifiableList(this.ipList);
+        }
+        return Collections.emptyList();
+    }
+
+    public void setIPList(List<String> newIPList) {
+        if (ipList == null || ipList.isEmpty())
+        {
+            ipList = new ArrayList<>();
+        }
+        else
+        {
+            this.ipList.clear();
+        }
+        this.ipList.addAll(newIPList);
+    }
+
     public String getIPListAsString()
     {
         if (this.ipList != null && !this.ipList.isEmpty())
         {
-            return StringUtils.join(this.ipList.toArray(new String[0]));
+            return StringUtils.join(this.ipList.toArray(new String[0]), ';');
         }
         return "";
     }
@@ -107,8 +134,8 @@ public class OcidBasedAccessControlType extends VCNBasedAccessControlType {
             {
                 ocid = aclStr.substring(0, firstSemi);
                 String ipListStr = aclStr.substring(firstSemi+1);
-                String[] splitOnComma = ipListStr.split(",");
-                for (String ip : splitOnComma)
+                String[] splitOnSemi = ipListStr.split(";");
+                for (String ip : splitOnSemi)
                 {
                     ipList.add(ip);
                 }
@@ -127,4 +154,5 @@ public class OcidBasedAccessControlType extends VCNBasedAccessControlType {
             this.pcs.firePropertyChange(new PropertyChangeEvent(this, "ocid", oldOcid, this.ocid));
         }
     }
+
 }

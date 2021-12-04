@@ -23,6 +23,7 @@ import com.oracle.oci.eclipse.ui.explorer.database.model.IPAddressType;
 import com.oracle.oci.eclipse.ui.explorer.database.model.IPBasedAccessControlType;
 import com.oracle.oci.eclipse.ui.explorer.database.model.OcidBasedAccessControlType;
 import com.oracle.oci.eclipse.ui.explorer.database.provider.dialog.VcnByNameSelectionWizard;
+import com.oracle.oci.eclipse.ui.explorer.database.provider.dialog.VcnIPRestrictionSelectionWizard;
 
 public class EditingSupportFactory {
     public static class IPTypeColumnEditingSupport extends EditingSupport {
@@ -302,7 +303,6 @@ public class EditingSupportFactory {
         public VcnIPRestrictionColumnEditingSupport(TableViewer viewer) {
             super(viewer);
             this.tableViewer = viewer;
-            
         }
 
         @Override
@@ -310,20 +310,21 @@ public class EditingSupportFactory {
             return new DialogCellEditor(this.tableViewer.getTable()) {
                 @Override
                 protected Object openDialogBox(Control cellEditorWindow) {
-                    final AccessControlRowHolder aclHolder = (AccessControlRowHolder) element;
-                    VcnByNameSelectionWizard wizard = 
-                        new VcnByNameSelectionWizard(aclHolder);
+                    final AccessControlRowHolder aclHolder = (AccessControlRowHolder) element; 
+                    VcnIPRestrictionSelectionWizard wizard = 
+                        new VcnIPRestrictionSelectionWizard(aclHolder); 
                     WizardDialog dialog = new WizardDialog(tableViewer.getTable().getShell(), wizard);
                     int open = dialog.open();
                     if (open == Window.OK)
                     {
-                        Vcn newVcn = wizard.getNewVcn();
+                        List<String> newIPList = wizard.getNewIPList();
                         if (aclHolder.isNew())
                         {
-                            aclHolder.setNew(true);
+                            aclHolder.setNew(false);
                             aclHolder.setFullyLoaded(true);
                         }
-                        ((OcidBasedAccessControlType)aclHolder.getAclType()).setVcn(newVcn);
+                        ((OcidBasedAccessControlType)aclHolder.getAclType()).setIPList(newIPList);
+                        tableViewer.refresh(true);
                     }
                     return null;
                 }

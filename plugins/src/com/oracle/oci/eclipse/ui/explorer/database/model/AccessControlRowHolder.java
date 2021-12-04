@@ -2,6 +2,10 @@ package com.oracle.oci.eclipse.ui.explorer.database.model;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.util.List;
+
+import com.oracle.oci.eclipse.ui.explorer.database.model.AccessControlType.Category;
+import com.oracle.oci.eclipse.ui.explorer.database.provider.PropertyListeningArrayList;
 
 public class AccessControlRowHolder extends EventSource implements PropertyChangeListener {
     private AccessControlType aclType;
@@ -54,4 +58,19 @@ public class AccessControlRowHolder extends EventSource implements PropertyChang
         this.isNew = isNew;
     }
 
+    public static PropertyListeningArrayList<AccessControlRowHolder> parseAclsFromText(List<String> whiteListedIps,
+            Category category) {
+        PropertyListeningArrayList<AccessControlRowHolder> acls = new PropertyListeningArrayList<>();
+
+        for (final String whitelisted : whiteListedIps) {
+            AccessControlType acl = AccessControlType.parseAcl(whitelisted);
+            if (acl.getCategory() == category) {
+                // IP Based is always loaded; vcn needs to wait for thec actual network
+                // metadata.
+                acls.add(new AccessControlRowHolder(acl, acl.getCategory() == Category.IP_BASED));
+            }
+        }
+
+        return acls;
+    }
 }

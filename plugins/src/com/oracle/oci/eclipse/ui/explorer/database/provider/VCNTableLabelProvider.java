@@ -44,10 +44,10 @@ public class VCNTableLabelProvider extends BaseLabelProvider implements ITableLa
                     return "New ACL";
                 }
                 return "Loading..";
-            case 2:
-                return aclType.getOcid();
             case 1:
                 return aclType.getIPListAsString();
+            case 2:
+                return aclType.getOcid();
             }
         }
         return "";
