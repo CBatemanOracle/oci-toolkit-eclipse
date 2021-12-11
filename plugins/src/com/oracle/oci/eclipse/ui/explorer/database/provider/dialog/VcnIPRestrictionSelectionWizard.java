@@ -40,7 +40,7 @@ public class VcnIPRestrictionSelectionWizard extends Wizard implements IWizard {
             this.ipConfigs = AccessControlRowHolder.parseAclsFromText(ocidBasedACLType.getIPList(), Category.IP_BASED);
             this.ipPanel.setInput(ipConfigs);
             this.ipPanel.refresh(true);
-            this.ipPanel.pack();
+
             this.changeListener = new PropertyChangeListener() {
                 @Override
                 public void propertyChange(PropertyChangeEvent evt) {

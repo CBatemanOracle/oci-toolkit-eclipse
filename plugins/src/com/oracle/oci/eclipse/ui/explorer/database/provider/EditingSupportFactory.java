@@ -28,9 +28,12 @@ import com.oracle.oci.eclipse.ui.explorer.database.provider.dialog.VcnIPRestrict
 public class EditingSupportFactory {
     public static class IPTypeColumnEditingSupport extends EditingSupport {
         private final static List<AccessControlType.Types> supportedTypes = Stream
-                .of(IPBasedAccessControlType.Types.values()).filter(e -> e != IPBasedAccessControlType.Types.Unknown)
+                .of(IPBasedAccessControlType.Types.values())
+                .filter(e -> e != IPBasedAccessControlType.Types.Unknown && 
+                             e != IPBasedAccessControlType.Types.VCN_BY_OCID)
                 .collect(Collectors.toList());
-        private final static List<String> ipNotationValues = supportedTypes.stream().map(Enum::name)
+        private final static List<String> ipNotationValues = supportedTypes.stream()
+                .map(IPBasedAccessControlType.Types::getLabel)
                 .collect(Collectors.toList());
 
         TableViewer ipAddressAclTableViewer;

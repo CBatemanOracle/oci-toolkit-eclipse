@@ -138,7 +138,7 @@ public class UpdateADBAccessControlWizard extends Wizard {
             }
         };
         try {
-            getContainer().run(true, false, op);
+            getContainer().run(true, true, op);
         } catch (InterruptedException e) {
             return false;
         } catch (InvocationTargetException e) {

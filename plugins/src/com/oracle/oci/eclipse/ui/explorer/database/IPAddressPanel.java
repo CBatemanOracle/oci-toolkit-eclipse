@@ -6,6 +6,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.MultiStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.layout.GridDataFactory;
+import org.eclipse.jface.layout.TableColumnLayout;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.TableViewer;
@@ -23,6 +24,8 @@ import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
 
 import com.oracle.oci.eclipse.Activator;
+import com.oracle.oci.eclipse.Icons;
+import com.oracle.oci.eclipse.ui.explorer.common.Utils;
 import com.oracle.oci.eclipse.ui.explorer.database.model.AccessControlRowHolder;
 import com.oracle.oci.eclipse.ui.explorer.database.model.IPAddressType;
 import com.oracle.oci.eclipse.ui.explorer.database.provider.AclTableLabelProvider;
@@ -53,21 +56,28 @@ public class IPAddressPanel {
         GridDataFactory.swtDefaults().grab(true, false).align(SWT.END, SWT.END).span(2, 1)
                 .applyTo(actionPanelIpAddress);
         ToolItem addItem = new ToolItem(actionPanelIpAddress, SWT.PUSH);
-        addItem.setText("Add");
+        addItem.setToolTipText("Add");
+        addItem.setImage(Activator.getImage(Icons.ADD.getPath()));
         ToolItem rmItem = new ToolItem(actionPanelIpAddress, SWT.PUSH);
-        rmItem.setText("Remove");
+        rmItem.setImage(Activator.getImage(Icons.DELETE.getPath()));
+        rmItem.setToolTipText("Remove");
 
-        this.ipAddressAclTableViewer = new TableViewer(parentControl, SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER);
+        Composite tableLayout = new Composite(parentControl, SWT.NONE);
+        TableColumnLayout tableColumnLayout = new TableColumnLayout();
+        tableLayout.setLayout(tableColumnLayout);
+        tableLayout.setLayoutData(layoutData);
+
+        this.ipAddressAclTableViewer = new TableViewer(tableLayout, SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER);
         this.configureAnywhereTable = ipAddressAclTableViewer.getTable();
         configureAnywhereTable.setHeaderVisible(true);
         configureAnywhereTable.setLinesVisible(true);
         configureAnywhereTable.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).span(2, 1).create());
-        this.ipTypeColumn = new TableViewerColumn(this.ipAddressAclTableViewer, SWT.Resize);
-        ipTypeColumn.getColumn().setText("IP Notation");
+        this.ipTypeColumn = Utils.createColumn(this.ipAddressAclTableViewer, "IP Notation");
+        Utils.setColumnLayout(ipTypeColumn, tableColumnLayout, 30);
         ipTypeColumn.setEditingSupport(new IPTypeColumnEditingSupport(ipTypeColumn.getViewer()));
 
-        this.valuesColumn = new TableViewerColumn(ipAddressAclTableViewer, SWT.NONE);
-        valuesColumn.getColumn().setText("Value");
+        this.valuesColumn = Utils.createColumn(ipAddressAclTableViewer, "Value");
+        Utils.setColumnLayout(valuesColumn, tableColumnLayout, 70);
         valuesColumn.setEditingSupport(new IPValueColumnEditingSupport(ipAddressAclTableViewer));
 
         ipAddressAclTableViewer.setContentProvider(new IStructuredContentProvider() {
@@ -81,6 +91,7 @@ public class IPAddressPanel {
         });
 
         ipAddressAclTableViewer.setLabelProvider(new AclTableLabelProvider());
+
         addItem.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {
@@ -108,12 +119,6 @@ public class IPAddressPanel {
         this.ipAddressAclTableViewer.getTable().setEnabled(enabled);
     }
 
-    public void pack() {
-        this.ipTypeColumn.getColumn().setWidth(200);
-        this.ipTypeColumn.getColumn().pack();
-        this.valuesColumn.getColumn().setWidth(200);
-        this.valuesColumn.getColumn().pack();
-    }
 
     public void refresh(boolean updateLabels) {
         this.ipAddressAclTableViewer.refresh(updateLabels);

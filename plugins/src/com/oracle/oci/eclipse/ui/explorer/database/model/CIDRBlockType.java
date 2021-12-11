@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 public class CIDRBlockType extends IPBasedAccessControlType {
     public final static Pattern CIDR_BLOCK_PATTERN = Pattern.compile("(\\d+).(\\d+).(\\d+).(\\d+)/(\\d+)");
 
+    @SuppressWarnings("unused")
     private String block; 
     private List<String> octalStrings;
     private String cidrStr;

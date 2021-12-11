@@ -15,6 +15,7 @@ import org.eclipse.core.runtime.MultiStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jface.layout.GridDataFactory;
+import org.eclipse.jface.layout.TableColumnLayout;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.TableViewer;
@@ -44,8 +45,10 @@ import org.eclipse.swt.widgets.ToolItem;
 import com.oracle.bmc.core.model.Vcn;
 import com.oracle.bmc.database.model.AutonomousDatabaseSummary;
 import com.oracle.oci.eclipse.Activator;
+import com.oracle.oci.eclipse.Icons;
 import com.oracle.oci.eclipse.sdkclients.ADBInstanceWrapper;
 import com.oracle.oci.eclipse.sdkclients.NetworkClient;
+import com.oracle.oci.eclipse.ui.explorer.common.Utils;
 import com.oracle.oci.eclipse.ui.explorer.database.model.AccessControlRowHolder;
 import com.oracle.oci.eclipse.ui.explorer.database.model.AccessControlType.Category;
 import com.oracle.oci.eclipse.ui.explorer.database.model.OcidBasedAccessControlType;
@@ -161,12 +164,6 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
                 updateStatus();
             }
         });
-
-        this.ipAddressPanel.pack();
-
-        this.vcnIPRestrictions.getColumn().pack();
-        this.vcnDisplayNameColumn.getColumn().pack();
-        this.vcnOcidColumn.getColumn().pack();
     }
 
     private void createIPAddressPanel(final Composite secureFromEverywhereTabComp) {
@@ -185,28 +182,35 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         this.actionPanelVCN = new ToolBar(ipAddressPanel, SWT.NONE);
         GridDataFactory.swtDefaults().grab(true, false).align(SWT.END, SWT.END).span(2, 1).applyTo(actionPanelVCN);
         ToolItem addItem = new ToolItem(actionPanelVCN, SWT.PUSH);
-        addItem.setText("Add");
+        addItem.setImage(Activator.getImage(Icons.ADD.getPath()));
+        addItem.setToolTipText("Add");
         ToolItem rmItem = new ToolItem(actionPanelVCN, SWT.PUSH);
-        rmItem.setText("Remove");
+        rmItem.setImage(Activator.getImage(Icons.DELETE.getPath()));
+        rmItem.setToolTipText("Remove");
 
-        this.vcnAclTableViewer = new TableViewer(ipAddressPanel, SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER);
+        Composite tableLayout = new Composite(ipAddressPanel, SWT.NONE);
+        TableColumnLayout tableColumnLayout = new TableColumnLayout();
+        tableLayout.setLayout(tableColumnLayout);
+        tableLayout.setLayoutData(layoutData);
+
+        this.vcnAclTableViewer = new TableViewer(tableLayout, SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER);
         this.configureAnywhereTable = vcnAclTableViewer.getTable();
         configureAnywhereTable.setHeaderVisible(true);
         configureAnywhereTable.setLinesVisible(true);
         configureAnywhereTable.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).span(2, 1).create());
 
-        this.vcnDisplayNameColumn = new TableViewerColumn(vcnAclTableViewer, SWT.NONE);
-        vcnDisplayNameColumn.getColumn().setText("Display Name");
+        this.vcnDisplayNameColumn = Utils.createColumn(vcnAclTableViewer, "Display Name");
+        Utils.setColumnLayout(vcnDisplayNameColumn, tableColumnLayout, 25);
         vcnDisplayNameColumn
-                .setEditingSupport(new EditingSupportFactory.VcnDisplayNameColumnEditingSupport(vcnAclTableViewer));
+            .setEditingSupport(new EditingSupportFactory.VcnDisplayNameColumnEditingSupport(vcnAclTableViewer));
 
-        this.vcnIPRestrictions = new TableViewerColumn(vcnAclTableViewer, SWT.NONE);
-        this.vcnIPRestrictions.getColumn().setText("IP Restrictions (Optional)");
+        this.vcnIPRestrictions = Utils.createColumn(vcnAclTableViewer, "IP Restrictions (Optional)");
+        Utils.setColumnLayout(vcnIPRestrictions, tableColumnLayout, 25);
         this.vcnIPRestrictions
-                .setEditingSupport(new EditingSupportFactory.VcnIPRestrictionColumnEditingSupport(vcnAclTableViewer));
+            .setEditingSupport(new EditingSupportFactory.VcnIPRestrictionColumnEditingSupport(vcnAclTableViewer));
 
-        this.vcnOcidColumn = new TableViewerColumn(vcnAclTableViewer, SWT.NONE);
-        this.vcnOcidColumn.getColumn().setText("Ocid");
+        this.vcnOcidColumn = Utils.createColumn(vcnAclTableViewer, "Ocid");
+        Utils.setColumnLayout(vcnOcidColumn, tableColumnLayout, 50);
         this.vcnOcidColumn.setEditingSupport(new EditingSupportFactory.VcnOcidColumnEditingSupport(vcnAclTableViewer));
 
         vcnAclTableViewer.setContentProvider(new IStructuredContentProvider() {
@@ -363,6 +367,7 @@ public class UpdateADBAccessControlWizardPage extends WizardPage {
         this.vcnAclTableViewer.setInput(this.vcnConfigs);
     }
 
+    @SuppressWarnings("unused")
     private void createPrivateEndpoint(Composite privateNetworkTabComp) {
         privateNetworkTabComp.setLayout(new GridLayout(3, false));
 
